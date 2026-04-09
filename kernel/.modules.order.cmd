@@ -1,0 +1,1 @@
+savedcmd_/mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/modules.order := {   echo /mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/pex.o; :; } > /mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/modules.order

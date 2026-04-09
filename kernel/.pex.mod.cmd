@@ -1,0 +1,1 @@
+savedcmd_/mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/pex.mod := printf '%s\n'   pex_main.o | awk '!x[$$0]++ { print("/mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/"$$0) }' > /mnt/c/Users/Deepthi/Desktop/Softee_cursor/kernel/pex.mod
