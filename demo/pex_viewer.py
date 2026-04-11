@@ -6,7 +6,11 @@ import sys
 import threading
 import time
 from pathlib import Path
-import tkinter as tk
+
+try:
+    import tkinter as tk
+except ModuleNotFoundError:
+    tk = None
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -161,8 +165,45 @@ def generate_locked_placeholder(width: int = 16, height: int = 16) -> bytes:
     return ppm.encode("ascii")
 
 
+def parse_ppm(ppm_bytes: bytes) -> tuple[int, int, list[tuple[int, int, int]]]:
+    tokens = ppm_bytes.split()
+    if len(tokens) < 4 or tokens[0] != b"P3":
+        raise RuntimeError("PPM payload must be ASCII P3 data")
+
+    width = int(tokens[1])
+    height = int(tokens[2])
+    max_value = int(tokens[3])
+    if max_value != 255:
+        raise RuntimeError(f"unsupported PPM max value: {max_value}")
+
+    pixel_values = [int(token) for token in tokens[4:]]
+    expected_values = width * height * 3
+    if len(pixel_values) < expected_values:
+        # Demo payloads may be truncated by a few channels; pad with the last RGB triplet.
+        missing = expected_values - len(pixel_values)
+        filler = pixel_values[-3:] if len(pixel_values) >= 3 else [0, 0, 0]
+        repeats = (missing + 2) // 3
+        pixel_values.extend((filler * repeats)[:missing])
+    elif len(pixel_values) > expected_values:
+        pixel_values = pixel_values[:expected_values]
+
+    pixels = [tuple(pixel_values[index:index + 3]) for index in range(0, len(pixel_values), 3)]
+    return width, height, pixels
+
+
 def photo_from_ppm(root: tk.Tk, ppm_bytes: bytes, scale: int) -> tk.PhotoImage:
-    image = tk.PhotoImage(master=root, data=ppm_bytes.decode("ascii"), format="PPM")
+    width, height, pixels = parse_ppm(ppm_bytes)
+    image = tk.PhotoImage(master=root, width=width, height=height)
+
+    rows = []
+    for y in range(height):
+        row = []
+        start = y * width
+        for r, g, b in pixels[start:start + width]:
+            row.append(f"#{r:02x}{g:02x}{b:02x}")
+        rows.append("{" + " ".join(row) + "}")
+
+    image.put(" ".join(rows))
     return image.zoom(scale, scale)
 
 
@@ -587,6 +628,12 @@ def main() -> None:
                 "PEX viewer self-check failed: "
                 f"{exc}\nMake sure pex.ko is loaded and /dev/pex exists via scripts/dev_setup.sh."
             )
+
+    if tk is None:
+        raise SystemExit(
+            "PEX viewer startup failed: tkinter is not installed.\n"
+            "Install it with: sudo apt install python3-tk"
+        )
 
     try:
         root = tk.Tk()

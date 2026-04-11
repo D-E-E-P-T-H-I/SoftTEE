@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/timekeeping.h>
 #include <linux/uaccess.h>
+#include <linux/version.h>
 #include <linux/vmalloc.h>
 
 #include "../libpex/include/pex_uapi.h"
@@ -462,7 +463,11 @@ static int pex_mmap(struct file *file, struct vm_area_struct *vma)
     ctx->mapped_start = vma->vm_start;
     ctx->mapped_len = len;
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+    vm_flags_set(vma, VM_DONTCOPY | VM_DONTDUMP);
+#else
     vma->vm_flags |= VM_DONTCOPY | VM_DONTDUMP;
+#endif
     vma->vm_ops = &pex_vm_ops;
     vma->vm_private_data = ctx;
     mutex_unlock(&ctx->lock);
@@ -494,13 +499,17 @@ static int __init pex_init(void)
     if (ret)
         goto err_chrdev;
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+    g_pex_class = class_create(PEX_DEVICE_NAME);
+#else
     g_pex_class = class_create(THIS_MODULE, PEX_DEVICE_NAME);
+#endif
     if (IS_ERR(g_pex_class)) {
         ret = PTR_ERR(g_pex_class);
         goto err_cdev;
     }
 
-    if (!device_create(g_pex_class, NULL, g_pex_devt, NULL, PEX_DEVICE_NAME)) {
+    if (IS_ERR(device_create(g_pex_class, NULL, g_pex_devt, NULL, PEX_DEVICE_NAME))) {
         ret = -ENOMEM;
         goto err_class;
     }

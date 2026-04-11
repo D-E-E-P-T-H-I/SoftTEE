@@ -21,8 +21,19 @@ if [[ ! -f "${MODULE_PATH}" ]]; then
   exit 1
 fi
 
-modprobe -r pex 2>/dev/null || true
-insmod "${MODULE_PATH}"
+reuse_loaded_module=0
+if grep -q '^pex ' /proc/modules; then
+  if modprobe -r pex 2>/dev/null; then
+    echo "Unloaded existing pex module."
+  else
+    echo "pex module is already loaded and busy; reusing the existing module."
+    reuse_loaded_module=1
+  fi
+fi
+
+if [[ "${reuse_loaded_module}" -eq 0 ]]; then
+  insmod "${MODULE_PATH}"
+fi
 
 major="$(grep " pex$" /proc/devices | awk '{print $1}')"
 if [[ -z "${major}" ]]; then
